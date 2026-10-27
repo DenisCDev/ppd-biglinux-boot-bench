@@ -14,13 +14,25 @@ ppd_bin=$(command -v power-profiles-daemon || ls /usr/libexec/power-profiles-dae
 [ -e /usr/lib/power-profiles-daemon ] || ln -s "$ppd_bin" /usr/lib/power-profiles-daemon
 systemctl mask --now power-profiles-daemon.service
 
-# Fake CPU sysfs: acpi-cpufreq style governors, optionally with the Intel EPB
-# knob that gives power-profiles-daemon a real CPU driver.
+# Fake CPU sysfs.
+#   acpi:    acpi-cpufreq style governors, no knob power-profiles-daemon knows
+#   epb:     same governors plus the Intel EPB knob (intel_pstate passive
+#            without HWP), so power-profiles-daemon has a real CPU driver
+#   pstate2: only performance/powersave plus EPB (intel_pstate active,
+#            amd-pstate-epp), where the daemon owns the CPU and no governor
+#            change is expected
+#   late:    acpi, but cpufreq appears 12 s after the boot service starts
+governors="conservative ondemand userspace powersave performance schedutil"
+default_gov=schedutil
+[ "$cpu" = pstate2 ] && governors="performance powersave" default_gov=powersave
 mount -t tmpfs tmpfs $cpudir
-mkdir -p $cpudir/cpu0/cpufreq
-echo "conservative ondemand userspace powersave performance schedutil" > $cpudir/cpu0/cpufreq/scaling_available_governors
-echo schedutil > $gov
-if [ "$cpu" = epb ]; then
+make_cpufreq() {
+    mkdir -p $cpudir/cpu0/cpufreq
+    echo "$governors" > $cpudir/cpu0/cpufreq/scaling_available_governors
+    echo $default_gov > $gov
+}
+make_cpufreq
+if [ "$cpu" = epb ] || [ "$cpu" = pstate2 ]; then
     mkdir -p $cpudir/cpu0/power
     echo 6 > $cpudir/cpu0/power/energy_perf_bias
 fi
@@ -53,14 +65,20 @@ record() {
 # unit files from disk, then the boot service runs.
 boot() {
     systemctl stop power-profiles-daemon-biglinux.service power-profiles-daemon-biglinux-start.service power-profiles-daemon-biglinux-cpufreq.path
-    echo schedutil > $gov
+    if [ "$cpu" = late ]; then
+        rm -rf $cpudir/cpu0/cpufreq
+        (sleep 12; make_cpufreq) &
+    else
+        echo $default_gov > $gov
+    fi
     systemctl daemon-reload
     systemctl start power-profiles-daemon-biglinux-cpufreq.path
     systemctl start power-profiles-daemon-biglinux.service
     for _ in $(seq 60); do
-        [ "$(systemctl show -p SubState --value power-profiles-daemon-biglinux.service)" = exited ] && break
+        [ "$(systemctl show -p SubState --value power-profiles-daemon-biglinux.service)" = exited ] && [ -e $gov ] && break
         sleep 1
     done
+    wait
     sleep 3
     record "$1"
 }

@@ -10,7 +10,7 @@ jobs:
       fail-fast: false
       matrix:
         variant: [base, patched]
-        cpu: [acpi, epb]
+        cpu: [acpi, epb, pstate2, late]
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update -qq
