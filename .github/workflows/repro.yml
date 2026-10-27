@@ -1,0 +1,22 @@
+name: repro
+on:
+  workflow_dispatch:
+  push:
+jobs:
+  repro:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [base, patched]
+        cpu: [acpi, epb]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update -qq
+      - run: sudo bash repro.sh variants/${{ matrix.variant }} ${{ matrix.cpu }} result-${{ matrix.variant }}-${{ matrix.cpu }}.csv
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: result-${{ matrix.variant }}-${{ matrix.cpu }}
+          path: result-*.csv
