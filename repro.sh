@@ -39,14 +39,14 @@ install -m644 "$variant"/*.service "$variant"/*.path /usr/lib/systemd/system/
 systemctl daemon-reload
 systemctl enable power-profiles-daemon-biglinux.service power-profiles-daemon-biglinux-cpufreq.path
 
-echo "step,fake_env_running,profiles,active,governor,state_ini_mtime,cpupower_calls" > "$out"
+echo "step,fake_env_running,profiles,active,governor,state_ini_mtime,cpupower_calls,boot_service_result" > "$out"
 record() {
     local env profiles active mtime
     env=$(systemctl show -p Environment --value power-profiles-daemon-biglinux-start | grep -c FAKE_DRIVER)
     profiles=$(powerprofilesctl list 2>/dev/null | grep -cE '^[ *] [a-z-]+:$')
     active=$(powerprofilesctl get 2>/dev/null)
     mtime=$(stat -c %Y /var/lib/power-profiles-daemon/state.ini 2>/dev/null || echo none)
-    echo "$1,$env,$profiles,$active,$(cat $gov),$mtime,$(wc -l < $log)" | tee -a "$out"
+    echo "$1,$env,$profiles,$active,$(cat $gov),$mtime,$(wc -l < $log),$(systemctl show -p Result --value power-profiles-daemon-biglinux.service)" | tee -a "$out"
 }
 
 # A boot: the kernel starts with its default governor and systemd reads the

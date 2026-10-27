@@ -2,7 +2,6 @@
 
 # Try default configuration
 sed -i 's| Environment="POWER_PROFILE_DAEMON_FAKE_DRIVER=1"|#Environment="POWER_PROFILE_DAEMON_FAKE_DRIVER=1"|g' /usr/lib/systemd/system/power-profiles-daemon-biglinux-start.service
-systemctl daemon-reload
 systemctl stop power-profiles-daemon-biglinux-start
 systemctl start power-profiles-daemon-biglinux-start
 sleep 3
@@ -26,7 +25,6 @@ fi
 if [ $numProfiles -lt 3 ]; then
 
     sed -i 's|#Environment="POWER_PROFILE_DAEMON_FAKE_DRIVER=1"| Environment="POWER_PROFILE_DAEMON_FAKE_DRIVER=1"|g' /usr/lib/systemd/system/power-profiles-daemon-biglinux-start.service
-    systemctl daemon-reload
     systemctl stop power-profiles-daemon-biglinux-start
     systemctl start power-profiles-daemon-biglinux-start
 
